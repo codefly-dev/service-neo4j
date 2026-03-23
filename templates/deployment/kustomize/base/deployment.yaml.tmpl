@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "neo4j-{{ .Service.Name.DNSCase }}"
+  namespace: "{{ .Namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "neo4j-{{ .Service.Name.DNSCase }}"
+  template:
+    metadata:
+      labels:
+        app: "neo4j-{{ .Service.Name.DNSCase }}"
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5-community
+          ports:
+            - containerPort: 7687
+              name: bolt
+            - containerPort: 7474
+              name: http
+          env:
+            - name: NEO4J_AUTH
+              value: "none"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"

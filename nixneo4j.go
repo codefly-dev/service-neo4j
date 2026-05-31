@@ -11,10 +11,30 @@ package main
 // data/logs/run dir (the nix-store home is read-only), launch `neo4j console`,
 // and wait for the bolt connector to accept connections.
 //
-// nixpkgs neo4j is Community edition. Mind uses the default `neo4j` database
-// (databases: []), so the Enterprise-only multi-database feature (CREATE
-// DATABASE) is not needed; database creation, when requested, still runs through
-// the agent's WaitForReady (and is a no-op on Community for the empty list).
+// nixpkgs neo4j is Community edition, which has NO multi-database support. This
+// is fine for serving the default `neo4j` database, but it does NOT cover every
+// caller: Mind's test isolation creates a database per test package
+// (`CREATE DATABASE <scope>`), an ENTERPRISE-only administration command, so on
+// the nix runtime those tests fail with UnsupportedAdministrationCommand. The
+// Docker runtime uses neo4j:5-enterprise and is unaffected.
+//
+// TODO(nix-enterprise): run Neo4j ENTERPRISE via nix so multi-database works
+// Docker-free and matches the Docker path exactly. nixpkgs only packages
+// Community, but its derivation just unpacks the tarball + wraps the launchers
+// with a JDK, so this is a pure `src` override in nix/flake.nix:
+//
+//	neo4j-enterprise = pkgs.neo4j.overrideAttrs (old: {
+//	  pname = "neo4j-enterprise";
+//	  src = pkgs.fetchurl {
+//	    url  = "https://neo4j.com/artifact.php?name=neo4j-enterprise-${old.version}-unix.tar.gz";
+//	    hash = "sha256-PtwW5UtwsZD0YP7Zpesx5+ToxqUqqCO/9rGN0tIYPIo="; // 2026.02.2, verified freely downloadable
+//	  };
+//	});
+//
+// Then: (1) point packages = [ neo4j-enterprise ]; (2) narrow resolveStore's
+// glob to `*-neo4j-enterprise-*` so it never picks a leftover Community build;
+// (3) accept the eval license on launch (NEO4J_ACCEPT_LICENSE_AGREEMENT=eval,
+// matching the Docker path). Deferred — Docker covers neo4j multi-db for now.
 //
 // Both runtimes serve bolt + http on the same ports, so the rest of the agent
 // (readiness, configuration) is unchanged.

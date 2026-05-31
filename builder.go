@@ -4,7 +4,10 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/codefly-dev/core/agents/communicate"
 	"github.com/codefly-dev/core/agents/services"
+	"github.com/codefly-dev/core/agents/services/audit"
+	"github.com/codefly-dev/core/agents/services/upgrade"
 	basev0 "github.com/codefly-dev/core/generated/go/codefly/base/v0"
 	builderv0 "github.com/codefly-dev/core/generated/go/codefly/services/builder/v0"
 	"github.com/codefly-dev/core/resources"
@@ -74,8 +77,37 @@ func (s *Builder) Build(ctx context.Context, req *builderv0.BuildRequest) (*buil
 	return s.Builder.BuildResponse()
 }
 
+// Audit scans the neo4j image for vulnerabilities via trivy.
+func (s *Builder) Audit(ctx context.Context, req *builderv0.AuditRequest) (*builderv0.AuditResponse, error) {
+	defer s.Wool.Catch()
+	ctx = s.Wool.Inject(ctx)
+	res, err := audit.Docker(ctx, image.FullName())
+	if err != nil {
+		return s.Builder.AuditError(err)
+	}
+	return s.Builder.AuditResponse(res.Findings, res.Outdated, res.Tool, res.Language)
+}
+
+// Upgrade reports a tag bump from the current neo4j image.
+func (s *Builder) Upgrade(ctx context.Context, req *builderv0.UpgradeRequest) (*builderv0.UpgradeResponse, error) {
+	defer s.Wool.Catch()
+	ctx = s.Wool.Inject(ctx)
+	res, err := upgrade.Docker(ctx, image.FullName(), upgrade.Options{
+		IncludeMajor: req.IncludeMajor,
+		DryRun:       req.DryRun,
+	})
+	if err != nil {
+		return s.Builder.UpgradeError(err)
+	}
+	return s.Builder.UpgradeResponse(res.Changes, res.LockfileDiff)
+}
+
 func (s *Builder) Deploy(ctx context.Context, req *builderv0.DeploymentRequest) (*builderv0.DeploymentResponse, error) {
 	defer s.Wool.Catch()
+
+	// Neo4j uses the stock Docker image — set it before deploy so
+	// CreateKubernetesBase doesn't try to find a codefly-built image.
+	s.Base.SetDockerImage(resources.NewDockerImage("neo4j:5-community"))
 
 	var k *builderv0.KubernetesDeployment
 	var err error
@@ -178,6 +210,12 @@ func (s *Builder) CreateEndpoints(ctx context.Context) error {
 
 	s.Endpoints = []*basev0.Endpoint{s.bolt, s.http}
 	return nil
+}
+
+func (s *Builder) Communicate(stream builderv0.Builder_CommunicateServer) error {
+	asker := communicate.NewQuestionAsker(stream)
+	_, err := asker.RunSequence(nil)
+	return err
 }
 
 //go:embed templates/factory

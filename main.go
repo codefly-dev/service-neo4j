@@ -25,11 +25,19 @@ var requirements = builders.NewDependencies(agent.Name,
 )
 
 type Settings struct {
-	Watch   bool   `yaml:"watch"`
-	DataDir string `yaml:"data-dir"`
+	Watch     bool     `yaml:"watch"`
+	DataDir   string   `yaml:"data-dir"`
+	Databases []string `yaml:"databases"`
+
+	// LogLevel controls Neo4j server log verbosity. When set, the
+	// agent passes NEO4J_server_logs_user_level and disables query
+	// logging so day-to-day startup/heartbeat noise stays out of the
+	// codefly forwarder. Accepts Neo4j's levels: DEBUG, INFO, WARN,
+	// ERROR. Empty = Neo4j default (INFO, which is chatty).
+	LogLevel string `yaml:"log-level"`
 }
 
-var image = &resources.DockerImage{Name: "neo4j", Tag: "5-community"}
+var image = &resources.DockerImage{Name: "neo4j", Tag: "5-enterprise"}
 
 type Service struct {
 	*services.Base

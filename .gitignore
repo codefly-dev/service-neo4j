@@ -1,0 +1,7 @@
+*.so
+.idea
+go.work*
+dist
+dist/
+service-neo4j
+.nix-cache/

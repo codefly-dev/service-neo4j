@@ -53,6 +53,11 @@ type nixNeo4j struct {
 	httpPort uint16
 	out      io.Writer
 	proc     runners.Proc
+	// serverCancel cancels serverCtx — the context the neo4j process runs under.
+	// It MUST outlive Init: starting neo4j under the Init RPC's ctx kills it the
+	// instant Init returns and that ctx is cancelled. Cancelled only by Stop.
+	serverCtx    context.Context
+	serverCancel context.CancelFunc
 
 	// binDir is the absolute nix store bin dir holding the `neo4j` wrapper +
 	// neo4j-admin. The wrapper bakes in JAVA_HOME, so invoking it by absolute
@@ -246,7 +251,11 @@ func (n *nixNeo4j) startServer(ctx context.Context) error {
 	if n.out != nil {
 		proc.WithOutput(n.out)
 	}
-	if err := proc.Start(ctx); err != nil {
+	// Run neo4j under a context that outlives Init — NOT the Init RPC ctx, which
+	// is cancelled the moment Init returns and would SIGTERM the server.
+	n.serverCtx, n.serverCancel = context.WithCancel(context.Background())
+	if err := proc.Start(n.serverCtx); err != nil {
+		n.serverCancel()
 		return fmt.Errorf("start neo4j: %w", err)
 	}
 	n.proc = proc
@@ -282,6 +291,9 @@ func (n *nixNeo4j) waitReady(ctx context.Context) error {
 
 // Stop terminates the neo4j server process group.
 func (n *nixNeo4j) Stop(ctx context.Context) error {
+	if n.serverCancel != nil {
+		n.serverCancel()
+	}
 	if n.proc == nil {
 		return nil
 	}

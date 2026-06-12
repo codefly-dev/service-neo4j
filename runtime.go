@@ -33,6 +33,11 @@ type Runtime struct {
 
 	boltPort uint16
 	httpPort uint16
+
+	// dataDir is the resolved on-disk data directory (set in Init). Destroy
+	// removes it so ephemeral / per-naming-scope runs don't leak data dirs
+	// (each ~500MB–2GB) until the disk fills.
+	dataDir string
 }
 
 func NewRuntime(svc *Service) *Runtime {
@@ -155,6 +160,7 @@ func (s *Runtime) Init(ctx context.Context, req *runtimev0.InitRequest) (*runtim
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return s.Runtime.InitError(fmt.Errorf("create data dir %s: %w", dataDir, err))
 	}
+	s.dataDir = dataDir
 
 	// Nix runtime: run neo4j natively from a nix-provisioned binary instead of a
 	// Docker container — selected when the caller requests RuntimeContextNix
@@ -328,6 +334,11 @@ func (s *Runtime) Stop(ctx context.Context, req *runtimev0.StopRequest) (*runtim
 }
 
 func (s *Runtime) Destroy(ctx context.Context, req *runtimev0.DestroyRequest) (*runtimev0.DestroyResponse, error) {
+	// Destroy means full teardown — remove the persisted data directory on
+	// every path. Without this, each per-naming-scope run (e.g. mindtest)
+	// leaked a ~500MB–2GB data dir that accumulated until the disk filled.
+	defer s.removeDataDir()
+
 	// Nix runtime: stop the native neo4j process group.
 	if s.nixRuntime != nil {
 		if err := s.nixRuntime.Stop(ctx); err != nil {
@@ -344,6 +355,17 @@ func (s *Runtime) Destroy(ctx context.Context, req *runtimev0.DestroyRequest) (*
 		}
 	}
 	return s.Runtime.DestroyResponse()
+}
+
+func (s *Runtime) removeDataDir() {
+	if s.dataDir == "" {
+		return
+	}
+	if err := os.RemoveAll(s.dataDir); err != nil {
+		s.Wool.Warn(fmt.Sprintf("could not remove neo4j data dir %s: %v", s.dataDir, err))
+	} else {
+		s.Wool.Debug(fmt.Sprintf("removed neo4j data dir %s", s.dataDir))
+	}
 }
 
 func (s *Runtime) Test(ctx context.Context, req *runtimev0.TestRequest) (*runtimev0.TestResponse, error) {

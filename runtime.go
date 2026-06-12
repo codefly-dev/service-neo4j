@@ -274,7 +274,14 @@ func (s *Runtime) WaitForReady(ctx context.Context) error {
 		if dErr != nil {
 			return dErr
 		}
-		return driver.VerifyConnectivity(ctx)
+		if cErr := driver.VerifyConnectivity(ctx); cErr != nil {
+			// Close the driver we're about to discard — Retry reassigns
+			// `driver` on the next attempt, so without this each failed
+			// retry leaks a driver (the outer defer only closes the last).
+			_ = driver.Close(ctx)
+			return cErr
+		}
+		return nil
 	})
 	if err != nil {
 		// Surface container logs so the user sees the real cause

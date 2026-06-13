@@ -107,7 +107,7 @@ func (s *Builder) Deploy(ctx context.Context, req *builderv0.DeploymentRequest) 
 
 	// Neo4j uses the stock Docker image — set it before deploy so
 	// CreateKubernetesBase doesn't try to find a codefly-built image.
-	s.Base.SetDockerImage(resources.NewDockerImage("neo4j:5-community"))
+	s.Base.SetDockerImage(resources.NewDockerImage("neo4j:5.26-community"))
 
 	var k *builderv0.KubernetesDeployment
 	var err error

@@ -37,7 +37,9 @@ type Settings struct {
 	LogLevel string `yaml:"log-level"`
 }
 
-var image = &resources.DockerImage{Name: "neo4j", Tag: "5-enterprise"}
+// 5.26 is the current Neo4j 5.x LTS. Enterprise is required for the
+// multi-database (CREATE DATABASE) feature the runtime uses.
+var image = &resources.DockerImage{Name: "neo4j", Tag: "5.26-enterprise"}
 
 type Service struct {
 	*services.Base

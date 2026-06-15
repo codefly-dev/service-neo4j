@@ -2,6 +2,8 @@ module github.com/codefly-dev/service-neo4j
 
 go 1.25.0
 
+toolchain go1.26.4
+
 require (
 	github.com/codefly-dev/core v0.1.164
 	github.com/hashicorp/go-multierror v1.1.1

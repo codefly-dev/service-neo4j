@@ -12,6 +12,7 @@ import (
 	runtimev0 "github.com/codefly-dev/core/generated/go/codefly/services/runtime/v0"
 	"github.com/codefly-dev/core/resources"
 	runners "github.com/codefly-dev/core/runners/base"
+	dockerrun "github.com/codefly-dev/core/runners/dockerrun"
 	"github.com/codefly-dev/core/shared"
 	"github.com/hashicorp/go-multierror"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -180,7 +181,7 @@ func (s *Runtime) Init(ctx context.Context, req *runtimev0.InitRequest) (*runtim
 		s.Infof("persisting Neo4j data to %s", dataDir)
 	} else {
 		// Docker: single container with both ports.
-		runner, err := runners.NewDockerHeadlessEnvironment(ctx, image, s.UniqueWithWorkspace())
+		runner, err := dockerrun.NewDockerHeadlessEnvironment(ctx, image, s.UniqueWithWorkspace())
 		if err != nil {
 			return s.Runtime.InitError(err)
 		}
@@ -287,7 +288,7 @@ func (s *Runtime) WaitForReady(ctx context.Context) error {
 		// Surface container logs so the user sees the real cause
 		// (license-not-accepted, port collision, plugin crash, etc.)
 		// rather than just a bolt connection refused.
-		if docker, ok := s.runner.(*runners.DockerEnvironment); ok {
+		if docker, ok := s.runner.(*dockerrun.DockerEnvironment); ok {
 			if tail := docker.TailLogs(ctx, 30); tail != "" {
 				return fmt.Errorf("neo4j not ready: %w; container logs (tail 30):\n%s", err, tail)
 			}

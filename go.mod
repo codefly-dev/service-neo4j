@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.26.4
 
 require (
-	github.com/codefly-dev/core v0.1.164
+	github.com/codefly-dev/core v0.2.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/stretchr/testify v1.11.1
@@ -23,7 +23,6 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cheggaaa/pb/v3 v3.1.7 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
@@ -67,7 +66,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/sys/sequential v0.7.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect

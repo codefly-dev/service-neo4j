@@ -170,7 +170,7 @@ func (s *Runtime) Init(ctx context.Context, req *runtimev0.InitRequest) (*runtim
 	if rc := req.GetRuntimeContext(); rc != nil && rc.Kind == resources.RuntimeContextNix {
 		s.Infof("using nix runtime for neo4j (bolt %d, http %d)", boltInstanceContainer.Port, httpInstanceContainer.Port)
 		nixn, err := newNixNeo4j(ctx, s.Location,
-			uint16(boltInstanceContainer.Port), uint16(httpInstanceContainer.Port), dataDir, s.Logger)
+			uint16(boltInstanceContainer.Port), uint16(httpInstanceContainer.Port), dataDir, newNeo4jLogWriter(s.Wool))
 		if err != nil {
 			return s.Runtime.InitError(err)
 		}
@@ -211,7 +211,7 @@ func (s *Runtime) Init(ctx context.Context, req *runtimev0.InitRequest) (*runtim
 				resources.Env("NEO4J_db_logs_query_enabled", "OFF"),
 			)
 		}
-		runner.WithOutput(s.Logger)
+		runner.WithOutput(newNeo4jLogWriter(s.Wool))
 		runner.WithMount(dataDir, "/data")
 		s.Infof("persisting Neo4j data to %s", dataDir)
 

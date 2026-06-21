@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.26.4
 
 require (
-	github.com/codefly-dev/core v0.2.5
+	github.com/codefly-dev/core v0.2.8
 	github.com/codefly-dev/gortk v0.0.0-20260619134945-d5474be5f046
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4

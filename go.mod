@@ -6,8 +6,8 @@ toolchain go1.26.4
 
 require (
 	github.com/codefly-dev/core v0.2.9
-	github.com/codefly-dev/gortk v0.0.0-20260621170842-c2212b7ad788
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/mind-build/gortk v0.1.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.80.0
@@ -27,6 +27,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cheggaaa/pb/v3 v3.1.7 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/codefly-dev/gortk v0.0.0-20260621170842-c2212b7ad788 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

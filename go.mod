@@ -6,8 +6,8 @@ toolchain go1.26.4
 
 require (
 	github.com/codefly-dev/core v0.2.11
+	github.com/codefly-dev/gortk v0.2.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/mind-build/gortk v0.1.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.80.0

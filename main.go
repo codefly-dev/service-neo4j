@@ -14,6 +14,7 @@ import (
 	"github.com/codefly-dev/core/agents/services"
 	agentv0 "github.com/codefly-dev/core/generated/go/codefly/services/agent/v0"
 	"github.com/codefly-dev/core/resources"
+	runnersbase "github.com/codefly-dev/core/runners/base"
 	"github.com/codefly-dev/core/shared"
 )
 
@@ -58,22 +59,13 @@ func (s *Service) GetAgentInformation(ctx context.Context, _ *agentv0.AgentInfor
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &agentv0.AgentInformation{
-		// Advertise the nix runtime (implemented in nixneo4j.go via
-		// RuntimeContextNix) so the CLI's per-service Docker-free gate
-		// (flow.resolveDockerFallback → Runner.SupportsNix) lets this service
-		// fall back to a nix-provisioned native process when Docker is
-		// unreachable. Without it the run hard-stops with "requires Docker"
-		// even though the nix path works.
-		RuntimeRequirements: []*agentv0.Runtime{
-			{Type: agentv0.Runtime_NIX},
+	return services.Advertisement{
+		Backends: runnersbase.BackendSupport{
+			Nix:    true,
+			Docker: true,
 		},
-		Capabilities: []*agentv0.Capability{
-			{Type: agentv0.Capability_BUILDER},
-			{Type: agentv0.Capability_RUNTIME},
-		},
-		Protocols: []*agentv0.Protocol{},
-		ConfigurationDetails: []*agentv0.ConfigurationValueDetail{
+		ReadMe: readme,
+		Config: []*agentv0.ConfigurationValueDetail{
 			{
 				Name: "connection", Description: "connection details",
 				Fields: []*agentv0.ConfigurationValueInformation{
@@ -82,8 +74,7 @@ func (s *Service) GetAgentInformation(ctx context.Context, _ *agentv0.AgentInfor
 				},
 			},
 		},
-		ReadMe: readme,
-	}, nil
+	}.Build(), nil
 }
 
 func NewService() *Service {

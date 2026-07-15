@@ -49,33 +49,24 @@ func NewRuntime(svc *Service) *Runtime {
 
 func (s *Runtime) Load(ctx context.Context, req *runtimev0.LoadRequest) (*runtimev0.LoadResponse, error) {
 	defer s.Wool.Catch()
-	ctx = s.Wool.Inject(ctx)
 
-	s.Runtime.SetEnvironment(req.Environment)
-
-	err := s.Base.Load(ctx, req.Identity, s.Settings)
-	if err != nil {
-		return s.Runtime.LoadErrorf(err, "loading base")
-	}
-
-	requirements.Localize(s.Location)
-
-	s.Endpoints, err = s.Base.Service.LoadEndpoints(ctx)
-	if err != nil {
-		return s.Runtime.LoadErrorf(err, "loading endpoints")
-	}
-
-	s.bolt, err = resources.FindTCPEndpointWithName(ctx, "bolt", s.Endpoints)
-	if err != nil {
-		return s.Runtime.LoadErrorf(err, "finding bolt endpoint")
-	}
-
-	s.http, err = resources.FindTCPEndpointWithName(ctx, "http", s.Endpoints)
-	if err != nil {
-		return s.Runtime.LoadErrorf(err, "finding http endpoint")
-	}
-
-	return s.Runtime.LoadResponse()
+	return s.Runtime.LoadService(ctx, req, services.RuntimeLoad{
+		Settings:     s.Settings,
+		Requirements: requirements,
+		ResolveEndpoints: func(ctx context.Context, endpoints []*basev0.Endpoint) error {
+			bolt, err := resources.FindTCPEndpointWithName(ctx, "bolt", endpoints)
+			if err != nil {
+				return s.Wool.Wrapf(err, "finding bolt endpoint")
+			}
+			http, err := resources.FindTCPEndpointWithName(ctx, "http", endpoints)
+			if err != nil {
+				return s.Wool.Wrapf(err, "finding http endpoint")
+			}
+			s.bolt = bolt
+			s.http = http
+			return nil
+		},
+	})
 }
 
 func (s *Runtime) CreateConnectionConfigurationInformation(_ context.Context, endpoint *basev0.Endpoint, instance *basev0.NetworkInstance) *basev0.ConfigurationInformation {

@@ -40,7 +40,11 @@ type Settings struct {
 
 // 5.26 is the current Neo4j 5.x LTS. Enterprise is required for the
 // multi-database (CREATE DATABASE) feature the runtime uses.
-var image = &resources.DockerImage{Name: "neo4j", Tag: "5.26-enterprise"}
+var image = &resources.DockerImage{
+	Name:   "neo4j",
+	Tag:    "5.26.28-enterprise",
+	Digest: "sha256:8fcce2d92deec638812e600f3990f8d2ee31a89394f86e8320245eb37e771fec",
+}
 
 type Service struct {
 	*services.Base

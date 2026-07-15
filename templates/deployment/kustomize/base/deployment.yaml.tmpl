@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: neo4j
-          image: neo4j:5-community
+          image: {{ .Image }}
           ports:
             - containerPort: 7687
               name: bolt
@@ -24,6 +24,8 @@ spec:
           env:
             - name: NEO4J_AUTH
               value: "none"
+            - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
+              value: "yes"
           resources:
             requests:
               memory: "512Mi"

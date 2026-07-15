@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+
 	"github.com/codefly-dev/core/agents/communicate"
 	"github.com/codefly-dev/core/agents/services"
 	"github.com/codefly-dev/core/agents/services/audit"
@@ -11,9 +12,7 @@ import (
 	basev0 "github.com/codefly-dev/core/generated/go/codefly/base/v0"
 	builderv0 "github.com/codefly-dev/core/generated/go/codefly/services/builder/v0"
 	"github.com/codefly-dev/core/resources"
-	"github.com/codefly-dev/core/shared"
 	"github.com/codefly-dev/core/standards"
-	"github.com/codefly-dev/core/templates"
 )
 
 type Builder struct {
@@ -31,28 +30,11 @@ func NewBuilder(svc *Service) *Builder {
 func (s *Builder) Load(ctx context.Context, req *builderv0.LoadRequest) (*builderv0.LoadResponse, error) {
 	defer s.Wool.Catch()
 
-	err := s.Base.Load(ctx, req.Identity, s.Settings)
-	if err != nil {
-		return nil, err
-	}
-
-	requirements.Localize(s.Location)
-
-	if req.CreationMode != nil {
-		s.Builder.CreationMode = req.CreationMode
-		s.Builder.GettingStarted, err = templates.ApplyTemplateFrom(ctx, shared.Embed(factoryFS), "templates/factory/GETTING_STARTED.md", s.Information)
-		if err != nil {
-			return nil, err
-		}
-		return s.Builder.LoadResponse()
-	}
-
-	s.Endpoints, err = s.Base.Service.LoadEndpoints(ctx)
-	if err != nil {
-		return s.Builder.LoadError(err)
-	}
-
-	return s.Builder.LoadResponse()
+	return s.Builder.LoadService(ctx, req, services.BuilderLoad{
+		Settings:         s.Settings,
+		Requirements:     requirements,
+		FactoryTemplates: factoryFS,
+	})
 }
 
 func (s *Builder) Init(ctx context.Context, req *builderv0.InitRequest) (*builderv0.InitResponse, error) {
@@ -105,70 +87,27 @@ func (s *Builder) Upgrade(ctx context.Context, req *builderv0.UpgradeRequest) (*
 func (s *Builder) Deploy(ctx context.Context, req *builderv0.DeploymentRequest) (*builderv0.DeploymentResponse, error) {
 	defer s.Wool.Catch()
 
-	// Neo4j uses the stock Docker image — set it before deploy so
-	// CreateKubernetesBase doesn't try to find a codefly-built image.
-	s.Base.SetDockerImage(resources.NewDockerImage("neo4j:5.26-community"))
+	// Neo4j uses the stock Enterprise image in both local and Kubernetes modes;
+	// configured databases rely on Enterprise-only CREATE DATABASE support.
+	s.Base.SetDockerImage(image)
 
-	var k *builderv0.KubernetesDeployment
-	var err error
-	if k, err = s.Builder.KubernetesDeploymentRequest(ctx, req); err != nil {
-		return s.Builder.DeployError(err)
-	}
-
-	namespace := k.Namespace
-	boltService := fmt.Sprintf("bolt://neo4j-%s.%s.svc.cluster.local:7687", s.Base.Service.Name, namespace)
-	httpService := fmt.Sprintf("http://neo4j-%s.%s.svc.cluster.local:7474", s.Base.Service.Name, namespace)
-
-	conf := &basev0.Configuration{
-		Origin: s.Base.Unique(),
-		Infos: []*basev0.ConfigurationInformation{
-			{
-				Name: "bolt",
-				ConfigurationValues: []*basev0.ConfigurationValue{
-					{Key: "connection", Value: boltService, Secret: true},
+	return s.Builder.DeployKustomize(ctx, req, services.KustomizeDeployment{
+		EnvironmentVariables: s.EnvironmentVariables,
+		Templates:            deploymentFS,
+		Prepare: func(ctx context.Context, deployment *services.KustomizeDeploymentContext) error {
+			namespace := deployment.Kubernetes.GetNamespace()
+			boltService := fmt.Sprintf("bolt://neo4j-%s.%s.svc.cluster.local:7687", s.Base.Service.Name, namespace)
+			httpService := fmt.Sprintf("http://neo4j-%s.%s.svc.cluster.local:7474", s.Base.Service.Name, namespace)
+			configuration := &basev0.Configuration{
+				Origin: s.Base.Unique(),
+				Infos: []*basev0.ConfigurationInformation{
+					{Name: "bolt", ConfigurationValues: []*basev0.ConfigurationValue{{Key: "connection", Value: boltService, Secret: true}}},
+					{Name: "http", ConfigurationValues: []*basev0.ConfigurationValue{{Key: "connection", Value: httpService, Secret: true}}},
 				},
-			},
-			{
-				Name: "http",
-				ConfigurationValues: []*basev0.ConfigurationValue{
-					{Key: "connection", Value: httpService, Secret: true},
-				},
-			},
+			}
+			return deployment.ExportConfiguration(ctx, configuration)
 		},
-	}
-
-	err = s.EnvironmentVariables.AddConfigurations(ctx, conf)
-	if err != nil {
-		return s.Builder.DeployError(err)
-	}
-
-	s.Configuration = conf
-
-	configs, err := s.EnvironmentVariables.Configurations()
-	if err != nil {
-		return s.Builder.DeployError(err)
-	}
-	cm, err := services.EnvsAsConfigMapData(configs...)
-	if err != nil {
-		return s.Builder.DeployError(err)
-	}
-
-	secrets, err := services.EnvsAsSecretData(s.EnvironmentVariables.Secrets()...)
-	if err != nil {
-		return s.Builder.DeployError(err)
-	}
-
-	params := services.DeploymentParameters{
-		ConfigMap: cm,
-		SecretMap: secrets,
-	}
-
-	err = s.Builder.KustomizeDeploy(ctx, req.Environment, k, deploymentFS, params)
-	if err != nil {
-		return s.Builder.DeployError(err)
-	}
-
-	return s.Builder.DeployResponse()
+	})
 }
 
 func (s *Builder) Create(ctx context.Context, req *builderv0.CreateRequest) (*builderv0.CreateResponse, error) {

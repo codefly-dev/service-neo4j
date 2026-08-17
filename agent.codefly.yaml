@@ -1,3 +1,4 @@
 publisher: codefly.dev
+kind: service
 name: neo4j
 version: 0.0.14

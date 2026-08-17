@@ -87,7 +87,7 @@ func testCreateToRun(t *testing.T, runtimeContext *basev0.RuntimeContext) {
 	// neo4j exposes two endpoints: bolt + http.
 	require.Equal(t, 2, len(runtime.Endpoints))
 
-	networkMappings, err := networkManager.GenerateNetworkMappings(ctx, env, workspace, runtime.Identity, runtime.Endpoints)
+	networkMappings, err := networkManager.GenerateNetworkMappings(ctx, env, workspace, runtime.Identity, runtime.Endpoints, runtimeContext)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(networkMappings))
 

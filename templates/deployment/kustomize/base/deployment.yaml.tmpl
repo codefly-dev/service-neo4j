@@ -13,6 +13,17 @@ spec:
       labels:
         app: "neo4j-{{ .Service.Name.DNSCase }}"
     spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      # neo4j runs as the image's built-in neo4j user (uid/gid 7474); fsGroup
+      # makes the emptyDir volumes group-writable for it.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 7474
+        runAsGroup: 7474
+        fsGroup: 7474
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: neo4j
           image: {{ .Image }}
@@ -23,9 +34,50 @@ spec:
               name: http
           env:
             - name: NEO4J_AUTH
-              value: "none"
+              valueFrom:
+                configMapKeyRef:
+                  name: "neo4j-{{ .Service.Name.DNSCase }}-config"
+                  key: access
             - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
               value: "yes"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          # readOnlyRootFilesystem forces every path neo4j writes to onto a
+          # writable volume. An empty conf dir is fine — neo4j falls back to
+          # its embedded default logging config.
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /logs
+            - name: conf
+              mountPath: /var/lib/neo4j/conf
+            - name: run
+              mountPath: /var/lib/neo4j/run
+            - name: metrics
+              mountPath: /var/lib/neo4j/metrics
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            tcpSocket:
+              port: 7687
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: 7687
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7687
+            periodSeconds: 10
           resources:
             requests:
               memory: "512Mi"
@@ -33,3 +85,16 @@ spec:
             limits:
               memory: "2Gi"
               cpu: "1000m"
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: conf
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: metrics
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

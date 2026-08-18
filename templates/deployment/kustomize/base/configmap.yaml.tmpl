@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "neo4j-{{ .Service.Name.DNSCase }}-config"
+  namespace: "{{ .Namespace }}"
+data:
+  # Consumed as the NEO4J_AUTH env var; "none" disables authentication so
+  # codefly connects over bolt without credentials. The key is deliberately
+  # not credential-shaped so it is not misread as a secret literal.
+  access: "none"

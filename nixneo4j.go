@@ -286,12 +286,34 @@ func (n *nixNeo4j) boltURI() string {
 	return fmt.Sprintf("bolt://127.0.0.1:%d", n.boltPort)
 }
 
-// waitReady polls the bolt connector until neo4j accepts connections. Neo4j is
-// slower to boot than postgres (JVM + store recovery), so the deadline is 60s.
+// waitReady polls the bolt connector until neo4j accepts connections.
+//
+// The deadline is deliberately generous. Neo4j's boot time on the nix runtime
+// is not just slow (JVM + store creation) but highly variable: on macOS the
+// first exec of the bundled JVM triggers Gatekeeper/notarization verification
+// of its native libraries, which can stall a cold boot to ~2.5 min while a warm
+// one finishes in ~15s. 60s was under that worst case, so a slow boot made this
+// return an error — which Init reports through InitError (a nil Go error), so
+// the failure surfaced far downstream as a misleading "configuration is nil"
+// when the runtime configuration was never built.
 func (n *nixNeo4j) waitReady(ctx context.Context) error {
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(5 * time.Minute)
 	var lastErr error
 	for time.Now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		// Fail fast if the server process has exited — otherwise a neo4j that
+		// crashes on boot (bad config, port already bound) would be polled
+		// until the full deadline. `neo4j console` runs the JVM in the
+		// foreground, so the launched process stays alive for the whole boot;
+		// IsRunning reporting false means a genuine exit, not a slow start.
+		if running, rerr := n.proc.IsRunning(ctx); rerr == nil && !running {
+			if lastErr != nil {
+				return fmt.Errorf("neo4j process exited during startup on %s: %w", n.boltURI(), lastErr)
+			}
+			return fmt.Errorf("neo4j process exited during startup on %s", n.boltURI())
+		}
 		driver, err := neo4j.NewDriverWithContext(n.boltURI(), neo4j.NoAuth())
 		if err == nil {
 			vctx, cancel := context.WithTimeout(ctx, 3*time.Second)

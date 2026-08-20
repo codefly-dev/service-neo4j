@@ -97,14 +97,16 @@ func testCreateToRun(t *testing.T, runtimeContext *basev0.RuntimeContext) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, init)
-	// Init reports failures through the response status (a nil Go error), so
-	// assert readiness here — otherwise a failed Init surfaces only far
-	// downstream as a misleading "configuration is nil".
-	require.Equal(t, runtimev0.InitStatus_READY, init.GetStatus().GetState(), init.GetStatus().GetMessage())
 
 	defer func() {
 		_, _ = runtime.Destroy(ctx, &runtimev0.DestroyRequest{})
 	}()
+
+	// Init reports failures through the response status (a nil Go error), so
+	// assert readiness here — otherwise a failed Init surfaces only far
+	// downstream as a misleading "configuration is nil". Registered after the
+	// Destroy defer so a failed assertion still tears down the data dir.
+	require.Equal(t, runtimev0.InitStatus_READY, init.GetStatus().GetState(), init.GetStatus().GetMessage())
 
 	start, err := runtime.Start(ctx, &runtimev0.StartRequest{})
 	require.NoError(t, err)

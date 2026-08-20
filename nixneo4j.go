@@ -300,6 +300,9 @@ func (n *nixNeo4j) waitReady(ctx context.Context) error {
 	deadline := time.Now().Add(5 * time.Minute)
 	var lastErr error
 	for time.Now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		driver, err := neo4j.NewDriverWithContext(n.boltURI(), neo4j.NoAuth())
 		if err == nil {
 			vctx, cancel := context.WithTimeout(ctx, 3*time.Second)

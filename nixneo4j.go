@@ -286,10 +286,18 @@ func (n *nixNeo4j) boltURI() string {
 	return fmt.Sprintf("bolt://127.0.0.1:%d", n.boltPort)
 }
 
-// waitReady polls the bolt connector until neo4j accepts connections. Neo4j is
-// slower to boot than postgres (JVM + store recovery), so the deadline is 60s.
+// waitReady polls the bolt connector until neo4j accepts connections.
+//
+// The deadline is deliberately generous. Neo4j's boot time on the nix runtime
+// is not just slow (JVM + store creation) but highly variable: on macOS the
+// first exec of the bundled JVM triggers Gatekeeper/notarization verification
+// of its native libraries, which can stall a cold boot to ~2.5 min while a warm
+// one finishes in ~15s. 60s was under that worst case, so a slow boot made this
+// return an error — which Init reports through InitError (a nil Go error), so
+// the failure surfaced far downstream as a misleading "configuration is nil"
+// when the runtime configuration was never built.
 func (n *nixNeo4j) waitReady(ctx context.Context) error {
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(5 * time.Minute)
 	var lastErr error
 	for time.Now().Before(deadline) {
 		driver, err := neo4j.NewDriverWithContext(n.boltURI(), neo4j.NoAuth())

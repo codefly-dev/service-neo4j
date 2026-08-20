@@ -97,13 +97,18 @@ func testCreateToRun(t *testing.T, runtimeContext *basev0.RuntimeContext) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, init)
+	// Init reports failures through the response status (a nil Go error), so
+	// assert readiness here — otherwise a failed Init surfaces only far
+	// downstream as a misleading "configuration is nil".
+	require.Equal(t, runtimev0.InitStatus_READY, init.GetStatus().GetState(), init.GetStatus().GetMessage())
 
 	defer func() {
 		_, _ = runtime.Destroy(ctx, &runtimev0.DestroyRequest{})
 	}()
 
-	_, err = runtime.Start(ctx, &runtimev0.StartRequest{})
+	start, err := runtime.Start(ctx, &runtimev0.StartRequest{})
 	require.NoError(t, err)
+	require.Equal(t, runtimev0.StartStatus_STARTED, start.GetStatus().GetState(), start.GetStatus().GetMessage())
 
 	// Get the native bolt connection string and run a Cypher query.
 	configurationOut, err := resources.ExtractConfiguration(init.RuntimeConfigurations, resources.NewRuntimeContextNative())

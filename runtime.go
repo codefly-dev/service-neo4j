@@ -165,10 +165,14 @@ func (s *Runtime) Init(ctx context.Context, req *runtimev0.InitRequest) (*runtim
 		if err != nil {
 			return s.Runtime.InitError(err)
 		}
+		// Hand ownership to Destroy before Init runs: nixn.Init launches the
+		// neo4j process and only then waits for readiness, so a wait failure
+		// would otherwise leave the started process orphaned (Destroy skips a
+		// nil nixRuntime). nixn.Stop is a no-op if the process never started.
+		s.nixRuntime = nixn
 		if err := nixn.Init(ctx); err != nil {
 			return s.Runtime.InitError(err)
 		}
-		s.nixRuntime = nixn
 		s.Infof("persisting Neo4j data to %s", dataDir)
 	} else {
 		// Docker: single container with both ports.

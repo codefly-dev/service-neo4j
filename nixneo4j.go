@@ -303,6 +303,17 @@ func (n *nixNeo4j) waitReady(ctx context.Context) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		// Fail fast if the server process has exited — otherwise a neo4j that
+		// crashes on boot (bad config, port already bound) would be polled
+		// until the full deadline. `neo4j console` runs the JVM in the
+		// foreground, so the launched process stays alive for the whole boot;
+		// IsRunning reporting false means a genuine exit, not a slow start.
+		if running, rerr := n.proc.IsRunning(ctx); rerr == nil && !running {
+			if lastErr != nil {
+				return fmt.Errorf("neo4j process exited during startup on %s: %w", n.boltURI(), lastErr)
+			}
+			return fmt.Errorf("neo4j process exited during startup on %s", n.boltURI())
+		}
 		driver, err := neo4j.NewDriverWithContext(n.boltURI(), neo4j.NoAuth())
 		if err == nil {
 			vctx, cancel := context.WithTimeout(ctx, 3*time.Second)

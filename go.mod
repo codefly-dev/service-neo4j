@@ -3,7 +3,7 @@ module github.com/codefly-dev/service-neo4j
 go 1.27.0
 
 require (
-	github.com/codefly-dev/core v0.3.6
+	github.com/codefly-dev/core v0.3.8
 	github.com/codefly-dev/gortk v0.2.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4

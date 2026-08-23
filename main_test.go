@@ -251,3 +251,37 @@ func TestNixInitOwnsProcessOnFailedReadiness(t *testing.T) {
 	// The started process must be owned for teardown even though Init failed.
 	require.NotNil(t, runtime.nixRuntime, "a failed Init must still register the nix runtime so Destroy can stop it")
 }
+
+// TestCreateWritesNoBuilderRecipe pins the off-the-shelf contract: neo4j runs
+// the stock upstream image (runtime and Deploy both configure it via env), so
+// Create must not emit a builder/ Docker recipe. A rendered recipe would be a
+// durable artifact nothing builds or consumes — and, under CLI-owned build, one
+// the executor could discover on disk and build into an unused image.
+func TestCreateWritesNoBuilderRecipe(t *testing.T) {
+	ctx := context.Background()
+
+	workspace := &resources.Workspace{Name: "test"}
+	tmpDir := t.TempDir()
+
+	serviceName := fmt.Sprintf("svc-%v", time.Now().UnixMilli())
+	service := resources.Service{Name: serviceName, Version: "test-me"}
+	serviceDir := path.Join(tmpDir, "mod", service.Name)
+	require.NoError(t, service.SaveAtDir(ctx, serviceDir))
+
+	identity := &basev0.ServiceIdentity{
+		Name:                service.Name,
+		Module:              "mod",
+		Workspace:           workspace.Name,
+		WorkspacePath:       tmpDir,
+		RelativeToWorkspace: fmt.Sprintf("mod/%s", service.Name),
+	}
+
+	builder := NewBuilder(NewService())
+	_, err := builder.Load(ctx, &builderv0.LoadRequest{DisableCatch: true, Identity: identity, CreationMode: &builderv0.CreationMode{Communicate: false}})
+	require.NoError(t, err)
+	_, err = builder.Create(ctx, &builderv0.CreateRequest{})
+	require.NoError(t, err)
+
+	_, err = os.Stat(path.Join(serviceDir, "builder"))
+	require.True(t, os.IsNotExist(err), "Create must not write a builder/ recipe for an off-the-shelf image agent")
+}

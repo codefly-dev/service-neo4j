@@ -114,12 +114,7 @@ func (s *Builder) Deploy(ctx context.Context, req *builderv0.DeploymentRequest) 
 func (s *Builder) Create(ctx context.Context, req *builderv0.CreateRequest) (*builderv0.CreateResponse, error) {
 	defer s.Wool.Catch()
 
-	err := s.Templates(ctx, nil, services.WithBuilder(builderFS))
-	if err != nil {
-		return s.Builder.CreateError(err)
-	}
-
-	err = s.CreateEndpoints(ctx)
+	err := s.CreateEndpoints(ctx)
 	if err != nil {
 		return s.Builder.CreateError(err)
 	}
@@ -160,9 +155,6 @@ func (s *Builder) Communicate(stream builderv0.Builder_CommunicateServer) error 
 
 //go:embed templates/factory
 var factoryFS embed.FS
-
-//go:embed templates/builder
-var builderFS embed.FS
 
 //go:embed templates/deployment
 var deploymentFS embed.FS
